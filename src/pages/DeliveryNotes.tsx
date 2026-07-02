@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
-import { Plus, Printer, Truck } from 'lucide-react';
+import { Plus, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function DeliveryNotes() {

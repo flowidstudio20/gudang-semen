@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, Users, LayoutDashboard, ShoppingCart, FileText, Menu, X, LogOut, ClipboardList, Settings, CreditCard, Send, Shield, Zap, UserPlus } from 'lucide-react';
+import { Package, MapPin, Users, LayoutDashboard, ShoppingCart, FileText, Menu, X, LogOut, ClipboardList, Settings, CreditCard, Send, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 

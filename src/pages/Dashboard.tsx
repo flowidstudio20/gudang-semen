@@ -211,7 +211,7 @@ export default function Dashboard() {
                     <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                     <Tooltip
-                      formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, 'Omzet']}
+                      formatter={(value: any) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Omzet']}
                       contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', boxShadow: 'var(--shadow-lg)' }}
                       labelStyle={{ color: 'var(--text-secondary)' }}
                     />

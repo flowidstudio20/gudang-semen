@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Mail, Lock, Zap, ArrowLeft } from 'lucide-react';
+import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 

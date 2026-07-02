@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Package, Truck, BarChart3, Shield, ArrowRight, Zap, CheckCircle, Warehouse } from 'lucide-react';
+import { Package, Truck, BarChart3, Shield, ArrowRight, CheckCircle, Warehouse } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 export default function Landing() {

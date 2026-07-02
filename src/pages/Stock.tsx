@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
-import { Plus, Minus, FileText } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface Product { id: string; name: string; }

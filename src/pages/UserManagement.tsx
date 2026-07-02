@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
-import { UserPlus, Users, Shield, Trash2, X, Eye, Edit } from 'lucide-react';
+import { UserPlus, Shield, Trash2, X, Eye, Edit } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface UserRecord {
