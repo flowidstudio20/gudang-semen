@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, Users, LayoutDashboard, ShoppingCart, FileText, Menu, X, LogOut, ClipboardList, Settings, CreditCard, Send, UserPlus } from 'lucide-react';
+import { Package, MapPin, Users, LayoutDashboard, ShoppingCart, FileText, Menu, X, LogOut, ClipboardList, Settings, CreditCard, Send, UserPlus, AlertTriangle, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabaseClient';
 import logo from '../assets/logo.png';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -9,6 +10,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { profile, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [lowStockItems, setLowStockItems] = useState<{name: string; stock: number; min: number}[]>([]);
+  const [alertDismissed, setAlertDismissed] = useState(false);
+
+  useEffect(() => {
+    const checkLowStock = async () => {
+      const [stockRes, prodRes] = await Promise.all([
+        supabase.from('stock_summary').select('product_id, current_stock'),
+        supabase.from('products').select('id, name, min_stock')
+      ]);
+      if (stockRes.data && prodRes.data) {
+        const lowItems: {name: string; stock: number; min: number}[] = [];
+        prodRes.data.forEach(p => {
+          const totalStock = stockRes.data!.filter((s: any) => s.product_id === p.id)
+            .reduce((acc: number, row: any) => acc + Number(row.current_stock), 0);
+          if (totalStock < p.min_stock) {
+            lowItems.push({ name: p.name, stock: totalStock, min: p.min_stock });
+          }
+        });
+        setLowStockItems(lowItems);
+      }
+    };
+    checkLowStock();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -29,6 +53,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { path: '/finance', name: 'Keuangan', icon: <CreditCard size={20} />, roles: ['admin'] },
     { path: '/reports', name: 'Laporan', icon: <FileText size={20} />, roles: ['admin', 'kepala_gudang'] },
     { path: '/user-management', name: 'Kelola Pengguna', icon: <UserPlus size={20} />, roles: ['admin'] },
+    { path: '/audit-logs', name: 'Audit Log', icon: <Activity size={20} />, roles: ['admin'] },
   ];
 
   const allowedMenus = menuItems.filter(item => item.roles.includes(role));
@@ -121,6 +146,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 >
                   {item.icon}
                   {item.name}
+                  {item.path === '/stock' && lowStockItems.length > 0 && (
+                    <span style={{
+                      marginLeft: 'auto',
+                      background: 'var(--danger)',
+                      color: 'white',
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: 'var(--radius-full)',
+                      minWidth: '18px',
+                      textAlign: 'center',
+                      lineHeight: 1.4
+                    }}>
+                      {lowStockItems.length}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -145,6 +186,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="main-content">
+        {lowStockItems.length > 0 && !alertDismissed && (
+          <div className="print-hide" style={{
+            marginBottom: '1rem',
+            padding: '0.85rem 1rem',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(245, 158, 11, 0.06))',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            animation: 'fadeIn 0.45s ease-out'
+          }}>
+            <AlertTriangle size={20} color="var(--danger)" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--danger)', marginBottom: '0.25rem' }}>
+                ⚠ Peringatan Stok Menipis!
+              </p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {lowStockItems.map((item, i) => (
+                  <span key={i}>
+                    <strong>{item.name}</strong> (sisa {item.stock}, min {item.min}){i < lowStockItems.length - 1 ? ' · ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+            <button onClick={() => setAlertDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
         {children}
       </main>
     </div>

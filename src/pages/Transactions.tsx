@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
 import { Plus, Eye, CheckCircle, XCircle, Camera, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { logActivity } from '../utils/audit';
 
 export default function Transactions() {
   const { profile } = useAuth();
@@ -20,6 +21,12 @@ export default function Transactions() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
   
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -29,6 +36,8 @@ export default function Transactions() {
     price: 0,
     payment_type: 'cash'
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => { fetchData(); }, []);
 
@@ -70,11 +79,16 @@ export default function Transactions() {
     setFormData({ ...formData, product_id: pid, price: prod?.sell_price || 0 });
   };
 
-  // Submit Penjualan Baru -> Status Draft (Request)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.customer_id || !formData.product_id || formData.qty <= 0) return alert('Data tidak lengkap atau jumlah tidak valid');
-    if (!receiptFile) return alert('WAJIB melampirkan Foto Bukti Penjualan!');
+    if (!formData.customer_id || !formData.product_id || formData.qty <= 0) {
+      showToast('Data tidak lengkap atau jumlah tidak valid', 'error');
+      return;
+    }
+    if (!receiptFile) {
+      showToast('WAJIB melampirkan Foto Bukti Penjualan!', 'error');
+      return;
+    }
     
     try {
       setUploading(true);
@@ -82,7 +96,10 @@ export default function Transactions() {
 
       // Upload Foto Bukti (jika ada)
       if (receiptFile) {
-        const fileExt = receiptFile.name.split('.').pop();
+        let fileExt = receiptFile.name.includes('.') ? receiptFile.name.split('.').pop() : '';
+        if (!fileExt) {
+          fileExt = receiptFile.type.split('/')[1] || 'jpg';
+        }
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('bukti penjualan')
@@ -118,12 +135,21 @@ export default function Transactions() {
         price: formData.price 
       }]);
 
+      const custName = customers.find(c => c.id === formData.customer_id)?.name || 'Pelanggan';
+      await logActivity(
+        profile?.id,
+        profile?.name,
+        'CREATE_SALES_ORDER',
+        `Membuat draf pesanan penjualan baru untuk pelanggan ${custName} senilai Rp ${(formData.qty * formData.price).toLocaleString('id-ID')}`
+      );
+
       setIsModalOpen(false);
       setUploading(false);
       fetchData();
+      showToast('Penjualan berhasil dibuat (menunggu persetujuan)!');
     } catch (err: any) {
       setUploading(false);
-      alert('Gagal membuat penjualan: ' + err.message);
+      showToast('Gagal membuat penjualan: ' + err.message, 'error');
     }
   };
 
@@ -136,7 +162,7 @@ export default function Transactions() {
     // Cek Stok
     const stock = stockSummary.find(s => s.product_id === item.product_id && s.warehouse_id === selectedOrder.warehouse_id)?.current_stock || 0;
     if (item.qty > stock) {
-      alert(`Stok tidak mencukupi! Sisa stok saat ini hanya ${stock} sak.`);
+      showToast(`Stok tidak mencukupi! Sisa stok saat ini hanya ${stock} sak.`, 'error');
       return;
     }
 
@@ -165,10 +191,18 @@ export default function Transactions() {
         }]);
       }
 
+      await logActivity(
+        profile?.id,
+        profile?.name,
+        'APPROVE_SALES_ORDER',
+        `Menyetujui penjualan SO #${selectedOrder.id.split('-')[0].toUpperCase()} untuk pelanggan ${selectedOrder.customers?.name} senilai Rp ${totalAmount.toLocaleString('id-ID')} dan memotong stok.`
+      );
+
       setIsDetailOpen(false);
       fetchData();
+      showToast('Penjualan berhasil disetujui!');
     } catch (err: any) {
-      alert('Terjadi kesalahan saat menyetujui: ' + err.message);
+      showToast('Terjadi kesalahan saat menyetujui: ' + err.message, 'error');
     }
   };
 
@@ -178,10 +212,19 @@ export default function Transactions() {
     
     try {
       await supabase.from('sales_orders').update({ status: 'cancelled' }).eq('id', selectedOrder.id);
+
+      await logActivity(
+        profile?.id,
+        profile?.name,
+        'REJECT_SALES_ORDER',
+        `Menolak dan membatalkan pesanan penjualan SO #${selectedOrder.id.split('-')[0].toUpperCase()} untuk pelanggan ${selectedOrder.customers?.name}`
+      );
+
       setIsDetailOpen(false);
       fetchData();
+      showToast('Penjualan berhasil ditolak!');
     } catch (err: any) {
-      alert('Gagal menolak: ' + err.message);
+      showToast('Gagal menolak: ' + err.message, 'error');
     }
   };
 
@@ -200,6 +243,16 @@ export default function Transactions() {
           </div>
         </header>
 
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <input type="text" className="input-field" placeholder="🔍 Cari berdasarkan nama pelanggan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ maxWidth: '300px', flex: 1 }} />
+          <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ maxWidth: '200px' }}>
+            <option value="all">Semua Status</option>
+            <option value="draft">Menunggu Persetujuan</option>
+            <option value="confirmed">Disetujui</option>
+            <option value="cancelled">Ditolak</option>
+          </select>
+        </div>
+
         <div className="glass-panel" style={{ padding: '1rem', overflowX: 'auto' }}>
           {loading ? (
             <p style={{ padding: '2rem', textAlign: 'center' }}>Memuat data...</p>
@@ -217,7 +270,11 @@ export default function Transactions() {
                 </tr>
               </thead>
               <tbody>
-                {salesOrders.length === 0 ? <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center' }}>Belum ada penjualan.</td></tr> : salesOrders.map((so) => {
+                {salesOrders.length === 0 ? <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center' }}>Belum ada penjualan.</td></tr> : salesOrders.filter(so => {
+                  const matchSearch = !searchQuery || so.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchStatus = filterStatus === 'all' || so.status === filterStatus;
+                  return matchSearch && matchStatus;
+                }).map((so) => {
                   const total = so.sales_order_items?.reduce((acc: number, item: any) => acc + (item.qty * item.price), 0) || 0;
                   return (
                     <tr key={so.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -400,11 +457,97 @@ export default function Transactions() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="btn btn-primary" onClick={() => setIsDetailOpen(false)}>Tutup Detail</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                <button className="btn" onClick={() => {
+                  const printContent = document.getElementById('print-invoice');
+                  if (printContent) {
+                    printContent.style.display = 'block';
+                    window.print();
+                    setTimeout(() => { printContent.style.display = 'none'; }, 500);
+                  }
+                }} style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>🖨 Cetak Nota</button>
+                
+                <button className="btn" onClick={() => {
+                  const cust = selectedOrder.customers;
+                  const item = selectedOrder.sales_order_items?.[0];
+                  const total = selectedOrder.sales_order_items?.reduce((acc: number, i: any) => acc + (i.qty * i.price), 0) || 0;
+                  const phone = cust?.contact || '';
+                  const cleanPhone = phone.replace(/\D/g, '').replace(/^0/, '62');
+                  const message = `Halo ${cust?.name},\n\nTerima kasih telah berbelanja di PT RIS INVESTINDO.\n\nBerikut rincian nota pembelian Anda:\nTanggal: ${new Date(selectedOrder.created_at).toLocaleDateString('id-ID')}\nPembayaran: ${selectedOrder.payment_type.toUpperCase()}\n\nItem:\n- ${item?.products?.name} (${item?.qty} sak) @ Rp ${item?.price.toLocaleString('id-ID')}\nTotal: Rp ${total.toLocaleString('id-ID')}\n\nNota digital ini adalah bukti transaksi yang sah. Terima kasih!`;
+                  window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`, '_blank');
+                }} style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', backgroundColor: '#128C7E', color: 'white' }}>
+                  💬 Kirim WA
+                </button>
+
+                <button className="btn btn-primary" onClick={() => setIsDetailOpen(false)}>Tutup</button>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Hidden Print Invoice */}
+      {selectedOrder && (
+        <div id="print-invoice" className="print-only" style={{ display: 'none' }}>
+          <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '400px', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', borderBottom: '2px dashed #000', paddingBottom: '1rem', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem' }}>PT RIS INVESTINDO</h2>
+              <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>NOTA PENJUALAN SEMEN</p>
+              <p style={{ margin: 0, fontSize: '0.7rem' }}>Tanggal: {new Date(selectedOrder.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            </div>
+            <div style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
+              <p><strong>Pelanggan:</strong> {selectedOrder.customers?.name}</p>
+              <p><strong>Pembayaran:</strong> {selectedOrder.payment_type === 'cash' ? 'Tunai' : 'Kredit'}</p>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', marginBottom: '1rem' }}>
+              <thead>
+                <tr style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000' }}>
+                  <th style={{ textAlign: 'left', padding: '0.5rem 0' }}>Item</th>
+                  <th style={{ textAlign: 'center' }}>Qty</th>
+                  <th style={{ textAlign: 'right' }}>Harga</th>
+                  <th style={{ textAlign: 'right' }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedOrder.sales_order_items?.map((item: any, idx: number) => (
+                  <tr key={idx}>
+                    <td style={{ padding: '0.3rem 0' }}>{item.products?.name}</td>
+                    <td style={{ textAlign: 'center' }}>{item.qty}</td>
+                    <td style={{ textAlign: 'right' }}>Rp {item.price?.toLocaleString('id-ID')}</td>
+                    <td style={{ textAlign: 'right' }}>Rp {(item.qty * item.price)?.toLocaleString('id-ID')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ borderTop: '2px dashed #000', paddingTop: '0.75rem', textAlign: 'right', fontSize: '1rem', fontWeight: 'bold' }}>
+              TOTAL: Rp {selectedOrder.sales_order_items?.reduce((acc: number, i: any) => acc + (i.qty * i.price), 0)?.toLocaleString('id-ID')}
+            </div>
+            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+              <div style={{ textAlign: 'center' }}><p>Pengirim</p><br/><br/><p>____________</p></div>
+              <div style={{ textAlign: 'center' }}><p>Penerima</p><br/><br/><p>____________</p></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: 'white',
+          padding: '0.75rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 10000,
+          fontWeight: 600,
+          fontSize: '0.9rem',
+          textAlign: 'center',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          {toast.message}
         </div>
       )}
     </Layout>

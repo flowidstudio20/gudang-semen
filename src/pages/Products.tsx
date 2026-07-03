@@ -25,6 +25,7 @@ export default function Products() {
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '', brand: '', unit: 'Sak', buy_price: 0, sell_price: 0, min_stock: 0
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchProducts();
@@ -121,6 +122,17 @@ export default function Products() {
           </button>
         </header>
 
+        <div style={{ marginBottom: '1rem' }}>
+          <input 
+            type="text" 
+            className="input-field" 
+            placeholder="🔍 Cari produk berdasarkan nama atau merk..." 
+            value={searchQuery} 
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ maxWidth: '400px' }}
+          />
+        </div>
+
         <div className="glass-panel" style={{ padding: '1rem', overflowX: 'auto' }}>
           {loading ? (
             <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Memuat data...</p>
@@ -145,7 +157,10 @@ export default function Products() {
                     </td>
                   </tr>
                 ) : (
-                  products.map((product) => (
+                  products.filter(p => 
+                    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (p.brand || '').toLowerCase().includes(searchQuery.toLowerCase())
+                  ).map((product) => (
                     <tr key={product.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '1rem', fontWeight: 500 }}>{product.name}</td>
                       <td style={{ padding: '1rem' }}>{product.brand || '-'}</td>

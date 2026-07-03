@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
 import { UserPlus, Shield, Trash2, X, Eye, Edit } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { logActivity } from '../utils/audit';
 
 interface UserRecord {
   id: string;
@@ -62,6 +63,8 @@ export default function UserManagement() {
       });
       if (error) throw error;
 
+      await logActivity(profile?.id, profile?.name, 'CREATE_USER', `Mendaftarkan pengguna baru: ${formData.name} (${formData.email}) dengan peran ${formData.role}`);
+
       setIsModalOpen(false);
       setFormData({ name: '', email: '', password: '', role: 'supir_kasir' });
       fetchUsers();
@@ -86,6 +89,8 @@ export default function UserManagement() {
 
       if (error) throw error;
 
+      await logActivity(profile?.id, profile?.name, 'UPDATE_USER', `Mengubah profil pengguna ${selectedUser.name} menjadi ${editData.name} dengan peran ${editData.role}`);
+
       setIsEditOpen(false);
       fetchUsers();
     } catch (err: any) {
@@ -100,6 +105,9 @@ export default function UserManagement() {
     try {
       const { error } = await supabase.from('users').delete().eq('id', userId);
       if (error) throw error;
+
+      await logActivity(profile?.id, profile?.name, 'DELETE_USER', `Menghapus pengguna dengan ID: ${userId}`);
+
       fetchUsers();
     } catch (err: any) {
       alert('Gagal menghapus pengguna (User ini kemungkinan sudah memiliki riwayat transaksi/aktivitas di database): ' + err.message);

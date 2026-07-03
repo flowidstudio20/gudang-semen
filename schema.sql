@@ -74,7 +74,9 @@ CREATE TABLE stock_movements (
   ref_type TEXT, -- e.g., 'purchase_order', 'sales_order', 'opname', 'transfer'
   ref_id UUID,
   created_by UUID REFERENCES users(id),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  sender_truck_plate TEXT,
+  sender_driver_name TEXT
 );
 
 -- Stock System: stock_summary (View for easier querying)
@@ -144,7 +146,9 @@ CREATE TABLE delivery_notes (
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'loading', 'on_the_way', 'delivered')),
   sent_at TIMESTAMPTZ,
   received_at TIMESTAMPTZ,
-  created_by UUID REFERENCES users(id)
+  created_by UUID REFERENCES users(id),
+  loading_image TEXT,
+  receipt_image TEXT
 );
 
 -- Operational: vehicle_maintenance
@@ -234,3 +238,27 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Finance: payment_history
+CREATE TABLE payment_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  receivable_id UUID REFERENCES receivables(id) ON DELETE CASCADE,
+  amount NUMERIC NOT NULL,
+  payment_date DATE DEFAULT CURRENT_DATE,
+  note TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS and add basic policies for payment_history
+ALTER TABLE payment_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Payment history is viewable by everyone" ON payment_history FOR SELECT USING (true);
+CREATE POLICY "Payment history can be created by admin only" ON payment_history FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Payment history can be updated by admin only" ON payment_history FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Payment history can be deleted by admin only" ON payment_history FOR DELETE USING (
+  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+);

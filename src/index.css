@@ -435,9 +435,214 @@ table tbody td { padding: 0.85rem 1rem; font-size: 0.875rem; }
     position: sticky;
     top: 0;
     z-index: 30;
+    --mobile-close-display: block;
   }
 
-  .main-content { padding: 1rem; }
-  .flex-between { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .main-content { padding: 0.75rem; }
+
+  /* -- HEADER FLEX FIX -- */
+  .flex-between {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  /* -- PAGE TITLES -- */
+  .animate-fade-in h1 {
+    font-size: 1.35rem !important;
+  }
+  .animate-fade-in header p {
+    font-size: 0.8rem !important;
+  }
+
+  /* -- STAT CARDS -- */
+  .stat-card {
+    padding: 1rem 1.1rem;
+  }
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+  }
+  .stat-card .stat-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 0.65rem;
+  }
+
+  /* -- BUTTONS -- */
+  .btn {
+    padding: 0.55rem 1rem;
+    font-size: 0.8rem;
+  }
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* -- GLASS PANEL -- */
+  .glass-panel {
+    border-radius: var(--radius-md);
+    padding: 0.75rem !important;
+  }
+
+  /* -- TABLES → MOBILE CARDS -- */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table thead {
+    display: none;
+  }
+  table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    padding: 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    position: relative;
+    border-bottom: none;
+  }
+  table tbody tr:hover {
+    background: var(--bg-tertiary);
+  }
+  table tbody td {
+    padding: 0 !important;
+    font-size: 0.82rem !important;
+    white-space: normal;
+    border: none !important;
+  }
+  /* Action column stacks nicely */
+  table tbody td:last-child {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem !important;
+    border-top: 1px solid var(--border-color) !important;
+    justify-content: flex-start !important;
+  }
+
+  /* -- MOBILE TABS (SCROLLABLE) -- */
+  .mobile-tabs-scroll {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+  }
+  .mobile-tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-tabs-scroll .btn {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    padding: 0.45rem 0.85rem;
+    white-space: nowrap;
+    width: auto;
+  }
+
+  /* -- MODALS -- */
+  /* Make modals more mobile-friendly */
+  div[style*="position: fixed"][style*="inset: 0"] > .glass-panel {
+    max-width: 100% !important;
+    margin: 0.5rem !important;
+    max-height: calc(100vh - 1rem) !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  /* -- DASHBOARD GRID -- */
+  .dashboard-chart-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Small phones */
+@media (max-width: 400px) {
+  .main-content { padding: 0.5rem; }
+
+  .stat-card .stat-value {
+    font-size: 1.25rem;
+  }
+  .stat-card .stat-label {
+    font-size: 0.65rem;
+  }
+
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================================= */
+/* PRINT STYLES                                                    */
+/* ============================================================= */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  /* Hide sidebar and navigation */
+  .sidebar,
+  .mobile-nav-toggle,
+  .mobile-overlay,
+  .print-hide,
+  button,
+  .btn,
+  select {
+    display: none !important;
+  }
+
+  /* Main content takes full screen */
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    width: 100% !important;
+  }
+
+  .glass-panel {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Display elements intended for print */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Fix tables layout for print */
+  table {
+    display: table !important;
+    width: 100% !important;
+  }
+  table thead {
+    display: table-header-group !important;
+  }
+  table tbody {
+    display: table-row-group !important;
+  }
+  table tr {
+    display: table-row !important;
+  }
+  table td, table th {
+    display: table-cell !important;
+    padding: 0.5rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* If isolated document printing is active (e.g. invoice or delivery note), hide everything else on the page */
+  body:has(#print-invoice:not([style*="display: none"])) .main-content > *:not(#print-invoice),
+  body:has(#print-surat-jalan) .main-content > *:not(#print-surat-jalan) {
+    display: none !important;
+  }
+
+  @page {
+    margin: 1cm;
+  }
 }

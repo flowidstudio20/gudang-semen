@@ -101,8 +101,8 @@ export default function Suppliers() {
                 <input required type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
               <div className="input-group">
-                <label className="input-label">No. Telepon / WA (Harus 13 Angka)</label>
-                <input required type="text" className="input-field" pattern="[0-9]{13}" minLength={13} maxLength={13} title="Harus tepat 13 angka" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value.replace(/\D/g, '')})} placeholder="Contoh: 0812345678901" />
+                <label className="input-label">No. Telepon / WA (Maks 13 Angka)</label>
+                <input required type="text" className="input-field" maxLength={13} value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value.replace(/\D/g, '')})} placeholder="Contoh: 081234567890" />
               </div>
               <div className="input-group">
                 <label className="input-label">Alamat Lengkap</label>

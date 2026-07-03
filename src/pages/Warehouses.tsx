@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Edit, Eye } from 'lucide-react';
 
 interface Warehouse {
   id: string;
@@ -13,7 +13,9 @@ export default function Warehouses() {
   const [items, setItems] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<Warehouse>>({ name: '', address: '' });
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Warehouse | null>(null);
+  const [formData, setFormData] = useState<Partial<Warehouse>>({ id: '', name: '', address: '' });
 
   useEffect(() => { fetchItems(); }, []);
 
@@ -32,12 +34,34 @@ export default function Warehouses() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data } = await supabase.from('warehouses').insert([formData]).select();
-    if (data) {
-      setItems([data[0], ...items]);
-      setIsModalOpen(false);
-      setFormData({ name: '', address: '' });
+    if (formData.id) {
+      const { error } = await supabase.from('warehouses').update({
+        name: formData.name,
+        address: formData.address
+      }).eq('id', formData.id);
+      
+      if (!error) {
+        setItems(items.map(i => i.id === formData.id ? { ...i, name: formData.name!, address: formData.address! } : i));
+        setIsModalOpen(false);
+        setFormData({ id: '', name: '', address: '' });
+      } else {
+        alert('Gagal mengupdate gudang: ' + error.message);
+      }
+    } else {
+      const { data, error } = await supabase.from('warehouses').insert([{ name: formData.name, address: formData.address }]).select();
+      if (data) {
+        setItems([data[0], ...items]);
+        setIsModalOpen(false);
+        setFormData({ id: '', name: '', address: '' });
+      } else if (error) {
+        alert('Gagal menambah gudang: ' + error.message);
+      }
     }
+  };
+
+  const handleEdit = (item: Warehouse) => {
+    setFormData(item);
+    setIsModalOpen(true);
   };
 
   return (
@@ -48,7 +72,7 @@ export default function Warehouses() {
             <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Data Gudang</h1>
             <p style={{ color: 'var(--text-secondary)' }}>Kelola lokasi gudang penyimpanan semen.</p>
           </div>
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-primary" onClick={() => { setFormData({ id: '', name: '', address: '' }); setIsModalOpen(true); }} style={{ display: 'flex', gap: '0.5rem' }}>
             <Plus size={18} /> Tambah Gudang
           </button>
         </header>
@@ -72,8 +96,14 @@ export default function Warehouses() {
                   <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '1rem', fontWeight: 500 }}>{item.name}</td>
                     <td style={{ padding: '1rem' }}>{item.address}</td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                      <button onClick={() => handleDelete(item.id)} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }}>
+                    <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                      <button onClick={() => { setSelectedItem(item); setIsDetailOpen(true); }} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} title="Detail">
+                        <Eye size={16} />
+                      </button>
+                      <button onClick={() => handleEdit(item)} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }} title="Edit">
+                        <Edit size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }} title="Hapus">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -89,7 +119,7 @@ export default function Warehouses() {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem', backgroundColor: 'var(--bg-primary)' }}>
             <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Tambah Gudang</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{formData.id ? 'Edit Gudang' : 'Tambah Gudang'}</h2>
               <button className="btn" onClick={() => setIsModalOpen(false)} style={{ padding: '0.25rem' }}><X size={20} /></button>
             </div>
             <form onSubmit={handleSave}>
@@ -106,6 +136,30 @@ export default function Warehouses() {
                 <button type="submit" className="btn btn-primary">Simpan</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isDetailOpen && selectedItem && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem', backgroundColor: 'var(--bg-primary)' }}>
+            <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Detail Gudang</h2>
+              <button className="btn" onClick={() => setIsDetailOpen(false)} style={{ padding: '0.25rem' }}><X size={20} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Nama Gudang</span>
+                <span style={{ fontWeight: 600 }}>{selectedItem.name}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Alamat Lengkap</span>
+                <span style={{ fontWeight: 500, lineHeight: 1.5 }}>{selectedItem.address}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={() => setIsDetailOpen(false)}>Tutup Detail</button>
+            </div>
           </div>
         </div>
       )}

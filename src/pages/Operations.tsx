@@ -238,8 +238,8 @@ export default function Operations() {
                   <input required type="text" className="input-field" value={formDataDriver.license_no} onChange={e => setFormDataDriver({...formDataDriver, license_no: e.target.value})} />
                 </div>
                 <div className="input-group">
-                  <label className="input-label">No. Telepon / WA (Harus 13 Angka)</label>
-                  <input type="text" className="input-field" pattern="[0-9]{13}" minLength={13} maxLength={13} title="Harus tepat 13 angka" value={formDataDriver.contact} onChange={e => setFormDataDriver({...formDataDriver, contact: e.target.value.replace(/\D/g, '')})} placeholder="Contoh: 0812345678901" />
+                  <label className="input-label">No. Telepon / WA (Maks 13 Angka)</label>
+                  <input type="text" className="input-field" maxLength={13} value={formDataDriver.contact} onChange={e => setFormDataDriver({...formDataDriver, contact: e.target.value.replace(/\D/g, '')})} placeholder="Contoh: 081234567890" />
                 </div>
                 <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}><button type="button" className="btn" onClick={() => setIsModalOpen(false)}>Batal</button><button type="submit" className="btn btn-primary">Simpan Supir</button></div>
               </form>

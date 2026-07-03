@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Edit, Eye } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -15,7 +15,10 @@ export default function Customers() {
   const [items, setItems] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<Customer>>({ name: '', type: 'toko', contact: '', address: '' });
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Customer | null>(null);
+  const [formData, setFormData] = useState<Partial<Customer>>({ id: '', name: '', type: 'toko', contact: '', address: '' });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { fetchItems(); }, []);
 
@@ -34,12 +37,42 @@ export default function Customers() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data } = await supabase.from('customers').insert([formData]).select();
-    if (data) {
-      setItems([data[0], ...items]);
-      setIsModalOpen(false);
-      setFormData({ name: '', type: 'toko', contact: '', address: '' });
+    if (formData.id) {
+      const { error } = await supabase.from('customers').update({
+        name: formData.name,
+        type: formData.type,
+        contact: formData.contact,
+        address: formData.address
+      }).eq('id', formData.id);
+      
+      if (!error) {
+        setItems(items.map(i => i.id === formData.id ? { ...i, ...formData } as Customer : i));
+        setIsModalOpen(false);
+        setFormData({ id: '', name: '', type: 'toko', contact: '', address: '' });
+      } else {
+        alert('Gagal mengupdate pelanggan: ' + error.message);
+      }
+    } else {
+      const { data, error } = await supabase.from('customers').insert([{ 
+        name: formData.name, 
+        type: formData.type, 
+        contact: formData.contact, 
+        address: formData.address 
+      }]).select();
+      
+      if (data) {
+        setItems([data[0], ...items]);
+        setIsModalOpen(false);
+        setFormData({ id: '', name: '', type: 'toko', contact: '', address: '' });
+      } else if (error) {
+        alert('Gagal menambah pelanggan: ' + error.message);
+      }
     }
+  };
+
+  const handleEdit = (item: Customer) => {
+    setFormData(item);
+    setIsModalOpen(true);
   };
 
   return (
@@ -50,10 +83,14 @@ export default function Customers() {
             <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Data Pelanggan</h1>
             <p style={{ color: 'var(--text-secondary)' }}>Kelola data distributor dan toko langganan.</p>
           </div>
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-primary" onClick={() => { setFormData({ id: '', name: '', type: 'toko', contact: '', address: '' }); setIsModalOpen(true); }} style={{ display: 'flex', gap: '0.5rem' }}>
             <Plus size={18} /> Tambah Pelanggan
           </button>
         </header>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <input type="text" className="input-field" placeholder="🔍 Cari pelanggan berdasarkan nama, tipe, atau kontak..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ maxWidth: '400px' }} />
+        </div>
 
         <div className="glass-panel" style={{ padding: '1rem', overflowX: 'auto' }}>
           {loading ? (
@@ -72,14 +109,24 @@ export default function Customers() {
               <tbody>
                 {items.length === 0 ? (
                   <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center' }}>Belum ada data.</td></tr>
-                ) : items.map((item) => (
+                ) : items.filter(item =>
+                  item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  item.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  item.contact.toLowerCase().includes(searchQuery.toLowerCase())
+                ).map((item) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '1rem', fontWeight: 500 }}>{item.name}</td>
                     <td style={{ padding: '1rem', textTransform: 'capitalize' }}>{item.type}</td>
                     <td style={{ padding: '1rem' }}>{item.contact}</td>
                     <td style={{ padding: '1rem' }}>{item.address}</td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                      <button onClick={() => handleDelete(item.id)} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }}>
+                    <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                      <button onClick={() => { setSelectedItem(item); setIsDetailOpen(true); }} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} title="Detail">
+                        <Eye size={16} />
+                      </button>
+                      <button onClick={() => handleEdit(item)} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }} title="Edit">
+                        <Edit size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} className="btn" style={{ padding: '0.25rem 0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }} title="Hapus">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -95,7 +142,7 @@ export default function Customers() {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem', backgroundColor: 'var(--bg-primary)' }}>
             <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Tambah Pelanggan</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{formData.id ? 'Edit Pelanggan' : 'Tambah Pelanggan'}</h2>
               <button className="btn" onClick={() => setIsModalOpen(false)} style={{ padding: '0.25rem' }}><X size={20} /></button>
             </div>
             <form onSubmit={handleSave}>
@@ -112,8 +159,8 @@ export default function Customers() {
                 </select>
               </div>
               <div className="input-group">
-                <label className="input-label">No. Telepon / WA (Harus 13 Angka)</label>
-                <input required type="text" className="input-field" pattern="[0-9]{13}" minLength={13} maxLength={13} title="Harus tepat 13 angka" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value.replace(/\D/g, '')})} placeholder="Contoh: 0812345678901" />
+                <label className="input-label">No. Telepon / WA (Maks 13 Angka)</label>
+                <input required type="text" className="input-field" maxLength={13} value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value.replace(/\D/g, '')})} placeholder="Contoh: 081234567890" />
               </div>
               <div className="input-group">
                 <label className="input-label">Alamat Lengkap</label>
@@ -124,6 +171,38 @@ export default function Customers() {
                 <button type="submit" className="btn btn-primary">Simpan</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isDetailOpen && selectedItem && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem', backgroundColor: 'var(--bg-primary)' }}>
+            <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Detail Pelanggan</h2>
+              <button className="btn" onClick={() => setIsDetailOpen(false)} style={{ padding: '0.25rem' }}><X size={20} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Nama Pelanggan</span>
+                <span style={{ fontWeight: 600 }}>{selectedItem.name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Tipe Pelanggan</span>
+                <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{selectedItem.type}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Kontak / Telepon</span>
+                <span style={{ fontWeight: 600 }}>{selectedItem.contact}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Alamat Lengkap</span>
+                <span style={{ fontWeight: 500, lineHeight: 1.5 }}>{selectedItem.address}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={() => setIsDetailOpen(false)}>Tutup Detail</button>
+            </div>
           </div>
         </div>
       )}

@@ -14,6 +14,7 @@ import Operations from './pages/Operations';
 import Finance from './pages/Finance';
 import DeliveryNotes from './pages/DeliveryNotes';
 import UserManagement from './pages/UserManagement';
+import AuditLogs from './pages/AuditLogs';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -53,6 +54,7 @@ function App() {
           <Route path="/operations" element={<ProtectedRoute><Operations /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+          <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>
