@@ -7,4 +7,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials are missing. Please add them to your .env file.');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
+  auth: {
+    persistSession: true, // Menyimpan sesi login di localStorage (tidak keluar saat refresh/tutup tab)
+    autoRefreshToken: true, // Otomatis memperbarui token login di background
+    detectSessionInUrl: true, // Mendeteksi sesi dari URL (berguna untuk OAuth/Magic Link)
+  }
+});
